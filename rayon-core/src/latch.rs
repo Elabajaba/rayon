@@ -1,6 +1,8 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::Arc;
 use std::usize;
+
+use parking_lot::{Condvar, Mutex};
 
 use crate::registry::{Registry, WorkerThread};
 
@@ -235,18 +237,18 @@ impl LockLatch {
 
     /// Block until latch is set, then resets this lock latch so it can be reused again.
     pub(super) fn wait_and_reset(&self) {
-        let mut guard = self.m.lock().unwrap();
+        let mut guard = self.m.lock();
         while !*guard {
-            guard = self.v.wait(guard).unwrap();
+            self.v.wait(&mut guard);
         }
         *guard = false;
     }
 
     /// Block until latch is set.
     pub(super) fn wait(&self) {
-        let mut guard = self.m.lock().unwrap();
+        let mut guard = self.m.lock();
         while !*guard {
-            guard = self.v.wait(guard).unwrap();
+            self.v.wait(&mut guard);
         }
     }
 }
@@ -254,7 +256,7 @@ impl LockLatch {
 impl Latch for LockLatch {
     #[inline]
     fn set(&self) {
-        let mut guard = self.m.lock().unwrap();
+        let mut guard = self.m.lock();
         *guard = true;
         self.v.notify_all();
     }

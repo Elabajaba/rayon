@@ -1,7 +1,7 @@
 use crossbeam_deque::{Steal, Stealer, Worker};
+use parking_lot::Mutex;
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Mutex, TryLockError};
 use std::thread::yield_now;
 
 use crate::current_num_threads;
@@ -170,7 +170,7 @@ where
                     } else {
                         // our cache is out of items, time to load more from the iterator
                         match self.iter.try_lock() {
-                            Ok(mut guard) => {
+                            Some(mut guard) => {
                                 // Check `done` again in case we raced with the previous lock
                                 // holder on its way out.
                                 if self.done.load(Ordering::SeqCst) {
@@ -198,14 +198,9 @@ where
                                     }
                                 }
                             }
-                            Err(TryLockError::WouldBlock) => {
+                            None => {
                                 // someone else has the mutex, just sit tight until it's ready
                                 yield_now(); //TODO: use a thread-pool-aware yield? (#548)
-                            }
-                            Err(TryLockError::Poisoned(_)) => {
-                                // any panics from other threads will have been caught by the pool,
-                                // and will be re-thrown when joined - just exit
-                                return folder;
                             }
                         }
                     }

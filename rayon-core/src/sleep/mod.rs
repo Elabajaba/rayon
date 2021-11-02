@@ -6,9 +6,10 @@ use crate::log::Event::*;
 use crate::log::Logger;
 use crossbeam_utils::CachePadded;
 use std::sync::atomic::Ordering;
-use std::sync::{Condvar, Mutex};
 use std::thread;
 use std::usize;
+
+use parking_lot::{Condvar, Mutex};
 
 mod counters;
 use self::counters::{AtomicCounters, JobsEventCounter};
@@ -153,7 +154,7 @@ impl Sleep {
         }
 
         let sleep_state = &self.worker_sleep_states[worker_index];
-        let mut is_blocked = sleep_state.is_blocked.lock().unwrap();
+        let mut is_blocked = sleep_state.is_blocked.lock();
         debug_assert!(!*is_blocked);
 
         // Our latch was signalled. We should wake back up fully as we
@@ -223,7 +224,7 @@ impl Sleep {
             // boolean as true.)
             *is_blocked = true;
             while *is_blocked {
-                is_blocked = sleep_state.condvar.wait(is_blocked).unwrap();
+                sleep_state.condvar.wait(&mut is_blocked);
             }
         }
 
@@ -354,7 +355,7 @@ impl Sleep {
     fn wake_specific_thread(&self, index: usize) -> bool {
         let sleep_state = &self.worker_sleep_states[index];
 
-        let mut is_blocked = sleep_state.is_blocked.lock().unwrap();
+        let mut is_blocked = sleep_state.is_blocked.lock();
         if *is_blocked {
             *is_blocked = false;
             sleep_state.condvar.notify_one();

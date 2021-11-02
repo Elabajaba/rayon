@@ -2,7 +2,8 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 #[allow(deprecated)]
 use crate::Configuration;
@@ -211,11 +212,11 @@ macro_rules! test_scope_order {
                 let vec = &vec;
                 for i in 0..10 {
                     scope.$spawn(move |_| {
-                        vec.lock().unwrap().push(i);
+                        vec.lock().push(i);
                     });
                 }
             });
-            vec.into_inner().unwrap()
+            vec.into_inner()
         })
     }};
 }

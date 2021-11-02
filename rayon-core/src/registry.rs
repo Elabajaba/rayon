@@ -19,9 +19,11 @@ use std::ptr;
 #[allow(deprecated)]
 use std::sync::atomic::ATOMIC_USIZE_INIT;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Once};
+use std::sync::Arc;
 use std::thread;
 use std::usize;
+
+use parking_lot::Once;
 
 /// Thread builder used for customization via
 /// [`ThreadPoolBuilder::spawn_handler`](struct.ThreadPoolBuilder.html#method.spawn_handler).
